@@ -1,11 +1,4 @@
-#!/usr/bin/python
-
-try:
-    import psyco
-
-    psyco.full()
-except:
-    print 'No psyco.  Expect poor performance. Not really...'
+#/usr/bin/python
 
 import pygame
 from pygame import FULLSCREEN
@@ -17,8 +10,13 @@ class Grapher(object):
     def __init__(self, screen, name, i):
         self.screen = screen
         self.name = name
-        self.range = float(1 << 13)
+        # Error, was originally 1 <<13, should be 1 << 14 - 1
+        self.range = float((1 << 14) - 1)
         self.xoff = 40
+        # This is to zoom in on the values for better observation.
+        self.mean_val = 0.5
+        self.zoom = 10.0
+        
         self.y = i * gheight
         self.buffer = []
         font = pygame.font.Font(None, 24)
@@ -32,13 +30,20 @@ class Grapher(object):
         self.buffer.append([packet.sensors[self.name]['value'], packet.sensors[self.name]['quality'], ])
 
     def calcY(self, val):
-        return int(val / self.range * gheight)
+        '''Scales the value to be a height in pixels. self.range is all
+           possible values it val could take, simply based on the # of bits'''
+        return int((self.zoom * (val - self.mean_val) / self.range + 0.5) *
+                    gheight)
 
     def draw(self):
         if len(self.buffer) == 0:
             return
         pos = self.xoff, self.calcY(self.buffer[0][0]) + self.y
+        # To enable zooming
+        mean_temp = 0
         for i, (value, quality ) in enumerate(self.buffer):
+            mean_temp += value
+            val =  self.zoom*(value - self.mean_val)/self.range + 0.5
             y = self.calcY(value) + self.y
             if quality == 0:
                 color = (0, 0, 0)
@@ -54,6 +59,8 @@ class Grapher(object):
                 color = (255, 255, 255)
             pygame.draw.line(self.screen, color, pos, (self.xoff + i, y))
             pos = (self.xoff + i, y)
+        mean_temp /= len(self.buffer)
+        self.mean_val = mean_temp
         self.screen.blit(self.text, self.textpos)
 
 def main(debug=False):
