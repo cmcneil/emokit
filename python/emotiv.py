@@ -310,10 +310,8 @@ class Emotiv(object):
             gevent.sleep(0)
 
     def dequeue(self):
-        try:
-            return self.packets.get()
-        except Exception, e:
-            print e
+        # Throws the exception Empty on failure. 
+        return self.packets.get()
 
     def close(self):
         if windows:
