@@ -42,7 +42,6 @@ battery_vals = [0, 0.42, 0.88, 1.42, 2.05, 2.80, 3.63, 5.08, 12.37, 20.43,
                 85.23, 89.45, 93.40, 97.02, 99.93, 100]
 
 g_battery = 0
-tasks = Queue()
 
 class EmotivPacket(object):
     def __init__(self, data, sensors):
@@ -110,6 +109,7 @@ class Emotiv(object):
     def __init__(self, displayOutput=False, headsetId=0, research_headset=True):
         self._goOn = True
         self.packets = Queue()
+        self.tasks = Queue()
         self.packetsReceived = 0
         self.packetsProcessed = 0
         self.battery = 0
@@ -226,7 +226,7 @@ class Emotiv(object):
 
     def handler(self, data):
         assert data[0] == 0
-        tasks.put_nowait(''.join(map(chr, data[1:])))
+        self.tasks.put_nowait(''.join(map(chr, data[1:])))
         self.packetsReceived += 1
         return True
 
@@ -254,7 +254,7 @@ class Emotiv(object):
                     else:
                         #Queue it!
                         self.packetsReceived += 1
-                        tasks.put_nowait(data)
+                        self.tasks.put_nowait(data)
                         gevent.sleep(0)
             except KeyboardInterrupt:
                 self._goOn = False
@@ -300,8 +300,8 @@ class Emotiv(object):
         cipher = AES.new(key, AES.MODE_ECB, iv)
         for i in k: print "0x%.02x " % (ord(i))
         while self._goOn:
-            while not tasks.empty():
-                task = tasks.get()
+            while not self.tasks.empty():
+                task = self.tasks.get()
                 data = cipher.decrypt(task[:16]) + cipher.decrypt(task[16:])
                 self.lastPacket = EmotivPacket(data, self.sensors)
                 self.packets.put_nowait(self.lastPacket)
