@@ -49,6 +49,7 @@ class EmotivPacket(object):
         self.rawData = data
         self.counter = ord(data[0])
         self.battery = g_battery
+        self.values = []
         if(self.counter > 127):
             self.battery = self.counter
             g_battery = self.battery_percent()
@@ -58,10 +59,12 @@ class EmotivPacket(object):
         self.gyroY = ord(data[30]) - 105
         sensors['X']['value'] = self.gyroX
         sensors['Y']['value'] = self.gyroY
-        for name, bits in sensorBits.items():
+        for name in sensor_ord[:14]:
+            bits = sensorBits[name]
             value = self.get_level(self.rawData, bits)
             setattr(self, name, (value,))
             sensors[name]['value'] = value
+            self.values.append(value)
         self.handle_quality(sensors)
         self.sensors = sensors
 
@@ -72,6 +75,11 @@ class EmotivPacket(object):
             b, o = (bits[i] / 8) + 1, bits[i] % 8
             level |= (ord(data[b]) >> o) & 1
         return level
+
+    def get_values(self):
+        '''Return just the values for each sesnsor (no gyros). This is for
+            use by emodsp, while minimizing dictionary lookups.'''
+        return self.values
 
     def handle_quality(self, sensors):
         current_contact_quality = self.get_level(self.rawData, quality_bits) / 540
